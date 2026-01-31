@@ -9,7 +9,13 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
+
 	"time"
+
+	"github.com/faiface/beep/generators"
+	"github.com/faiface/beep"
+	"github.com/faiface/beep/speaker"
 )
 
 type MsgSaver interface {
@@ -62,6 +68,36 @@ func (ipms *IPMsgServer) Init(ctx context.Context) error {
 	}
 }
 
+var (
+	sampleRate = beep.SampleRate(44100)
+	initOnce   sync.Once
+)
+
+func PlayBeep(freq int, dur time.Duration) error {
+	// Частота дискретизации (samples per second)
+	sr := beep.SampleRate(44100)
+
+	// Инициализация speaker (один раз)
+	if err := speaker.Init(sr, sr.N(time.Second/10)); err != nil {
+		return err
+	}
+
+	// Создаём генератор синусоиды
+	tone, err := generators.SinTone(sr, freq)
+	if err != nil {
+		return err
+	}
+
+	// Ограничиваем длительность сигнала
+	streamer := beep.Take(sr.N(dur), tone)
+
+	// Проигрываем
+	speaker.Play(streamer)
+
+	return nil
+}
+
+
 func (ipms *IPMsgServer) handleConn(conn net.Conn) {
     defer conn.Close()
 
@@ -87,6 +123,8 @@ func (ipms *IPMsgServer) handleConn(conn net.Conn) {
         ipms.writeError(conn, "failed save message: "+err.Error())
         return
     }
+
+    PlayBeep(1200, time.Millisecond * 20)
 
     writeSuc(conn)
 }
