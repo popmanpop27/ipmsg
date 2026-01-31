@@ -17,7 +17,7 @@ func main()  {
 	const (
 		defaultSavePath = "/usr/share/ipmsg.txt"
 		defaultHost     = "0.0.0.0"
-		defaultPort     = 745
+		defaultPort     = 6767
 	)
 
 	log := slog.Default()

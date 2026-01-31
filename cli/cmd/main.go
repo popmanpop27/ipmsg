@@ -14,7 +14,7 @@ func main() {
 	var port uint
 
 	flag.StringVar(&destinationIP, "to", "", "recipient ip address")
-	flag.UintVar(&port, "port", 745, "recipient port")
+	flag.UintVar(&port, "port", 6767, "recipient port")
 	flag.Parse()
 
 	if destinationIP == "" {
