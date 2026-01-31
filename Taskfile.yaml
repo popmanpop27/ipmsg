@@ -1,0 +1,34 @@
+version: '3'
+
+vars:
+  SERVER_MAIN: cmd/main.go
+  CLI_MAIN: cli/cmd/main.go
+
+tasks:
+  default:
+    desc: Build server and cli for all platforms
+    deps:
+      - build:mac
+      - build:win
+      - build:linux
+
+  build:mac:
+    desc: Build for macOS arm64
+    cmds:
+      - mkdir -p mac_arm
+      - GOOS=darwin GOARCH=arm64 go build -o mac_arm/server {{.SERVER_MAIN}}
+      - GOOS=darwin GOARCH=arm64 go build -o mac_arm/cli {{.CLI_MAIN}}
+
+  build:win:
+    desc: Build for Windows amd64
+    cmds:
+      - mkdir -p win
+      - GOOS=windows GOARCH=amd64 go build -o win/server.exe {{.SERVER_MAIN}}
+      - GOOS=windows GOARCH=amd64 go build -o win/cli.exe {{.CLI_MAIN}}
+
+  build:linux:
+    desc: Build for Linux amd64
+    cmds:
+      - mkdir -p linux
+      - GOOS=linux GOARCH=amd64 go build -o linux/server {{.SERVER_MAIN}}
+      - GOOS=linux GOARCH=amd64 go build -o linux/cli {{.CLI_MAIN}}
