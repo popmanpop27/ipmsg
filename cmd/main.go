@@ -9,18 +9,24 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"os/user"
+	"path/filepath"
 	"syscall"
 )
 
 func main()  {
 
 	const (
-		defaultSavePath = "/usr/share/ipmsg.txt"
 		defaultHost     = "0.0.0.0"
 		defaultPort     = 6767
 	)
-
 	log := slog.Default()
+
+	defaultSavePath, err := createFile("ipmsg.txt", "")
+	if err != nil {
+		log.Error("failed create storage file", "err", err)
+		os.Exit(1)
+	}
 
 	var savePath, host string
 	var port uint
@@ -59,4 +65,30 @@ func grasefullStop(log *slog.Logger, cancel func()) {
 	cancel()
 	log.Info("application fully stoped", slog.String("SIGNAL", sig.String()))
 	os.Exit(1)
+}
+
+// createFile создаёт файл с указанным именем в указанной директории.
+// Если path пустой, файл создаётся в домашней директории пользователя.
+// Возвращает полный путь к созданному файлу или ошибку.
+func createFile(filename, path string) (string, error) {
+	// Если путь пустой, используем домашнюю директорию
+	if path == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return "", fmt.Errorf("не удалось получить текущего пользователя: %w", err)
+		}
+		path = currentUser.HomeDir
+	}
+
+	// Формируем полный путь к файлу
+	filePath := filepath.Join(path, filename)
+
+	// Создаём файл
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("не удалось создать файл: %w", err)
+	}
+	defer file.Close()
+
+	return filePath, nil
 }
