@@ -16,7 +16,7 @@ func main()  {
 
 	const (
 		defaultSavePath = "/usr/share/ipmsg.txt"
-		defaultHost     = "localhost"
+		defaultHost     = "0.0.0.0"
 		defaultPort     = 745
 	)
 
@@ -51,7 +51,6 @@ func main()  {
 
 func grasefullStop(log *slog.Logger, cancel func()) {
 
-	
 	var sig os.Signal
 	sysStop := make(chan os.Signal, 1)
 	signal.Notify(sysStop, syscall.SIGTERM, syscall.SIGINT)
