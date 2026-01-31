@@ -70,7 +70,7 @@ func main() {
 			}
 		}
 
-		fmt.Printf("Success sent to %d machines in local net\n", suc)
+		fmt.Printf("] Success sent to %d machines in local net\n", suc)
 		return
 	}
 
