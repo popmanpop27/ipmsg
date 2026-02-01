@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"ipmsg/internal/beep"
 	"ipmsg/internal/filesaver"
 	"ipmsg/internal/server"
 	"log/slog"
@@ -11,10 +12,16 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"syscall"
 )
 
 func main()  {
+
+	runtime.LockOSThread()
+
+	beep.Init()
+	defer beep.Close()
 
 	const (
 		defaultHost     = "0.0.0.0"

@@ -1,8 +1,10 @@
 package beep
 
 import (
+	"errors"
 	"io"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/hajimehoshi/oto/v2"
@@ -16,35 +18,84 @@ type toneReader struct {
 	totalSamples int
 }
 
+var (
+    ctx  *oto.Context
+    once sync.Once
+	beepQueue chan struct{}
+)
+
+func Init() error {
+    var err error
+    once.Do(func() {
+        ctx, _, err = oto.NewContext(44100, 1, 2)
+		beepQueue = make(chan struct{}, 10)
+
+		go audioWorker()
+    })
+    return err
+}
+
+func Close()  {
+	if beepQueue != nil {
+		close(beepQueue)
+	}
+}
+
+func audioWorker()  {
+	for _ = range beepQueue {
+		playBeep(1318.51, time.Millisecond*100)
+		playBeep(1396.91, time.Millisecond * 50)
+		playBeep(1567.98, time.Millisecond * 50)
+		playBeep(1396.91, time.Millisecond * 50)
+		playBeep(1318.51, time.Millisecond*100)
+	}
+}
+
+func Beep()  {
+	if beepQueue == nil {
+		return
+	}
+
+	select {
+	case beepQueue <- struct{}{}: // added to queue
+	default:                      // too much beeps, skipping
+	}
+}
+
 func (t *toneReader) Read(p []byte) (int, error) {
 	if t.sampleIndex >= t.totalSamples {
 		return 0, io.EOF
 	}
 
-	for i := 0; i+1 < len(p) && t.sampleIndex < t.totalSamples; i += 2 {
-		// генерируем 16‑битный PCM
-		v := int16(0.3 * 32767 * math.Sin(2*math.Pi*t.frequency*float64(t.sampleIndex)/float64(t.sampleRate)))
-		p[i] = byte(v)
-		p[i+1] = byte(v >> 8)
+	n := 0
+	for n+1 < len(p) && t.sampleIndex < t.totalSamples {
+		v := int16(
+			0.3 * 32767 *
+				math.Sin(2*math.Pi*t.frequency*
+					float64(t.sampleIndex)/float64(t.sampleRate)),
+		)
+
+		p[n] = byte(v)
+		p[n+1] = byte(v >> 8)
+
+		n += 2
 		t.sampleIndex++
 	}
 
-	return len(p), nil
+	return n, nil
 }
 
-func PlayBeep(freq float64, dur time.Duration) error {
+
+func playBeep(freq float64, dur time.Duration) error {
 	const sampleRate = 44100
 	const channelCount = 1
 	const bytesPerSample = 2 // PCM16
 
-	// создаём Context (только один раз за программу)
-	ctx, ready, err := oto.NewContext(sampleRate, channelCount, bytesPerSample)
-	if err != nil {
-		return err
+	if ctx == nil {
+		return errors.New("voice context is null")
 	}
-	<-ready
 
-	// создаём наш генератор
+	// создаём наш генератор синусоиды
 	tr := &toneReader{
 		sampleRate:   sampleRate,
 		frequency:    freq,
@@ -52,13 +103,9 @@ func PlayBeep(freq float64, dur time.Duration) error {
 		totalSamples: int(float64(sampleRate) * dur.Seconds()),
 	}
 
-	// создаём Player из Reader
 	player := ctx.NewPlayer(tr)
+	defer player.Close()
 
-	// Play() асинхронно
-	player.Play()
-
-	// ждём, пока проигрывается
 	for player.IsPlaying() {
 		time.Sleep(time.Millisecond * 10)
 	}

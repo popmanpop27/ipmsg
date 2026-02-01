@@ -92,7 +92,7 @@ func (ipms *IPMsgServer) handleConn(conn net.Conn) {
         return
     }
 
-    beep.PlayBeep(1200, time.Millisecond * 200)
+    beep.Beep()
 
     writeSuc(conn)
 }
