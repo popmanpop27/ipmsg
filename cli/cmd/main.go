@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -156,12 +158,54 @@ func getIPRange(localip string) []string {
 
 
 func getLocalIP() (string, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	ifaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
 	}
-	defer conn.Close()
 
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String(), nil
+	for _, iface := range ifaces {
+		// интерфейс должен быть активным и не loopback
+		if iface.Flags&net.FlagUp == 0 ||
+			iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		// отсеиваем VPN-интерфейсы по имени
+		if isVPNInterface(iface.Name) {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip == nil ||
+				ip.IsLoopback() ||
+				ip.To4() == nil {
+				continue
+			}
+
+			return ip.String(), nil
+		}
+	}
+
+	return "", errors.New("no suitable local IP found")
+}
+
+func isVPNInterface(name string) bool {
+	return strings.HasPrefix(name, "tun") ||
+		strings.HasPrefix(name, "tap") ||
+		strings.HasPrefix(name, "wg") ||
+		strings.HasPrefix(name, "ppp")
 }
