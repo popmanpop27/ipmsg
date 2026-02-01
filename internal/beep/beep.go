@@ -105,6 +105,7 @@ func playBeep(freq float64, dur time.Duration) error {
 
 	player := ctx.NewPlayer(tr)
 	defer player.Close()
+	player.Play()
 
 	for player.IsPlaying() {
 		time.Sleep(time.Millisecond * 10)
