@@ -31,6 +31,9 @@ func main() {
 
 		localIPs := getIPRange(myIP)
 
+		fmt.Print("ip range: ")
+		fmt.Println(localIPs)
+
 		fmt.Println("Type your message, to stop typing press 'CTRL+D'")
 
 		msgText, err := io.ReadAll(os.Stdin)
@@ -130,7 +133,7 @@ func getIPRange(localip string) []string {
 			pinger := probing.New(nIP)
 			pinger.Count = 1
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
 			defer cancel()
 
 			if err := pinger.RunWithContext(ctx); err == nil && pinger.PacketsRecv > 0 {
