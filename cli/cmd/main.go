@@ -71,7 +71,7 @@ func main() {
 		length := len(msgText)
 		suc := 0
 
-		// Создаем строку загрузки
+
 		fmt.Print("Sending: [")
 		for i, ip := range localIPs {
 
@@ -89,17 +89,14 @@ func main() {
 			)))
 			if err == nil {
 				suc++
-				// Добавляем символ прогресса
 				fmt.Print("=")
 			}
 			conn.Close()
 
-			// Дополнительно можно добавить небольшой sleep, чтобы анимация была видна
 			time.Sleep(time.Millisecond * 10)
 
-			// Обновляем строку прогресса, если хотим
 			if i == len(localIPs)-1 {
-				fmt.Println("]") // закрываем прогресс-бар
+				fmt.Println("]") 
 			}
 		}
 
@@ -200,24 +197,22 @@ func getIPRange(localIP string, cache Cache) []string {
 
 func getLocalIP() (string, error) {
 
-	ifaces, err := net.Interfaces()
+	interfaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
 	}
 
-	for _, iface := range ifaces {
-		// интерфейс должен быть активным и не loopback
-		if iface.Flags&net.FlagUp == 0 ||
-			iface.Flags&net.FlagLoopback != 0 {
+	for _, face := range interfaces {
+		if face.Flags&net.FlagUp == 0 ||
+			face.Flags&net.FlagLoopback != 0 {
 			continue
 		}
 
-		// отсеиваем VPN-интерфейсы по имени
-		if isVPNInterface(iface.Name) {
+		if isVPNInterface(face.Name) {
 			continue
 		}
 
-		addrs, err := iface.Addrs()
+		addrs, err := face.Addrs()
 		if err != nil {
 			continue
 		}
@@ -252,46 +247,37 @@ func isVPNInterface(name string) bool {
 		strings.HasPrefix(name, "ppp")
 }
 
-// createFile создаёт файл с указанным именем в указанной директории.
-// Если path пустой, файл создаётся в домашней директории пользователя.
-// Возвращает полный путь к созданному файлу или ошибку.
+
 func createFile(filename, path string) (string, error) {
-	// Если путь пустой, используем домашнюю директорию
 	if path == "" {
 		currentUser, err := user.Current()
 		if err != nil {
-			return "", fmt.Errorf("не удалось получить текущего пользователя: %w", err)
+			return "", fmt.Errorf("failed get target user: %w", err)
 		}
 		path = currentUser.HomeDir
 	}
 
-	// Формируем полный путь к файлу
 	filePath := filepath.Join(path, filename)
 
-	// Создаём файл
 	file, err := os.Create(filePath)
 	if err != nil {
-		return "", fmt.Errorf("не удалось создать файл: %w", err)
+		return "", fmt.Errorf("failed create file: %w", err)
 	}
 	defer file.Close()
 
 	return filePath, nil
 }
 
-// createFile создаёт файл с указанным именем в указанной директории.
-// Если path пустой, файл создаётся в домашней директории пользователя.
-// Возвращает полный путь к созданному файлу или ошибку.
+
 func createHomePath(filename, path string) (string, error) {
-	// Если путь пустой, используем домашнюю директорию
 	if path == "" {
 		currentUser, err := user.Current()
 		if err != nil {
-			return "", fmt.Errorf("не удалось получить текущего пользователя: %w", err)
+			return "", fmt.Errorf("failed get target user: %w", err)
 		}
 		path = currentUser.HomeDir
 	}
 
-	// Формируем полный путь к файлу
 	filePath := filepath.Join(path, filename)
 
 	return filePath, nil
