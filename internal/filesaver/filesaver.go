@@ -10,7 +10,7 @@ import (
 
 type FileSaver struct {}
 
-func (_ *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest) error {
+func (fs *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest) error {
 	const op = "filesaver.SaveToFile"
 
 	file, err := os.OpenFile(filename, os.O_CREATE| os.O_RDWR, 0644)

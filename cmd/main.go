@@ -30,6 +30,11 @@ func main()  {
 	log := slog.Default()
 
 	defaultSavePath, err := createFile("ipmsg.txt", "")
+
+	if err != nil {
+		log.Error("failed create cache file, program may work slow", "err", err)
+	}
+
 	if err != nil {
 		log.Error("failed create storage file", "err", err)
 		os.Exit(1)
@@ -59,10 +64,10 @@ func main()  {
 	}()
 	log.Info("starting TCP server", "addr", fmt.Sprintf("%s:%d", host, uint16(port)))
 
-	grasefullStop(log, cancel)
+	gracefulStop(log, cancel)
 }
 
-func grasefullStop(log *slog.Logger, cancel func()) {
+func gracefulStop(log *slog.Logger, cancel func()) {
 
 	var sig os.Signal
 	sysStop := make(chan os.Signal, 1)
@@ -70,32 +75,31 @@ func grasefullStop(log *slog.Logger, cancel func()) {
 
 	sig = <-sysStop
 	cancel()
-	log.Info("application fully stoped", slog.String("SIGNAL", sig.String()))
+	log.Info("application fully stopped", slog.String("SIGNAL", sig.String()))
 	os.Exit(1)
 }
 
-// createFile создаёт файл с указанным именем в указанной директории.
-// Если path пустой, файл создаётся в домашней директории пользователя.
-// Возвращает полный путь к созданному файлу или ошибку.
+// createFile creates file in path, if it null creates in user home path
 func createFile(filename, path string) (string, error) {
-	// Если путь пустой, используем домашнюю директорию
+	// using home directory if path is null
 	if path == "" {
 		currentUser, err := user.Current()
 		if err != nil {
-			return "", fmt.Errorf("не удалось получить текущего пользователя: %w", err)
+			return "", fmt.Errorf("failed get target user: %w", err)
 		}
 		path = currentUser.HomeDir
 	}
 
-	// Формируем полный путь к файлу
 	filePath := filepath.Join(path, filename)
 
-	// Создаём файл
-	file, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("не удалось создать файл: %w", err)
+	// creating file if it not exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {		
+		file, err := os.Create(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed create file: %w", err)
+		}
+		defer file.Close()
 	}
-	defer file.Close()
 
 	return filePath, nil
 }

@@ -6,8 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"ipmsgcli/internal/cache"
 	"net"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -15,13 +18,34 @@ import (
 	probing "github.com/prometheus-community/pro-bing"
 )
 
+type Cache interface {
+	GetIps() ([]string, error)
+	UpdateIps(ips []string) error
+}
+
 func main() {
 	var destinationIP string
 	var port uint
 
+	defaultCachePath, err := createHomePath("ipmsg/cache.json", "")
+	if err != nil {
+		fmt.Println("failed create cache file error: " + err.Error())
+		os.Exit(1)
+	}
+
+	cachePath := ""
+
 	flag.StringVar(&destinationIP, "to", "", "recipient ip address")
 	flag.UintVar(&port, "port", 6767, "recipient port")
+	flag.StringVar(&cachePath, "cache", defaultCachePath, "path to json file with cache")
 	flag.Parse()
+
+
+	cacheManager, err := cache.New(cachePath)
+	if err != nil {
+		fmt.Println("failed init cache, err: " + err.Error())
+		os.Exit(1)
+	}
 
 	if destinationIP == "" {
 
@@ -31,7 +55,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		localIPs := getIPRange(myIP)
+		localIPs := getIPRange(myIP, cacheManager)
 
 		fmt.Print("ip range: ")
 		fmt.Println(localIPs)
@@ -119,8 +143,16 @@ func main() {
 	fmt.Println("Sent to 1 machine")
 }
 
-func getIPRange(localip string) []string {
-	ip := net.ParseIP(localip)
+func getIPRange(localIP string, cache Cache) []string {
+
+	cached, err := cache.GetIps()
+	if err == nil && len(cached) > 0 {
+		return cached
+	} else {
+			fmt.Printf("Failed get ip`s from cache, pinging network")
+	}
+
+	ip := net.ParseIP(localIP)
 	ipv4 := ip.To4()
 
 	res := []string{}
@@ -135,7 +167,7 @@ func getIPRange(localip string) []string {
 			pinger := probing.New(nIP)
 			pinger.Count = 1
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
 			if err := pinger.RunWithContext(ctx); err == nil && pinger.PacketsRecv > 0 {
@@ -149,8 +181,17 @@ func getIPRange(localip string) []string {
 		close(resChan)
 	}()
 
+	fmt.Print("\n[")
+
 	for ip := range resChan {
+		fmt.Print("=")
 		res = append(res, ip)
+	}
+	fmt.Printf("]\n")
+
+	err = cache.UpdateIps(res)
+	if err != nil {
+		fmt.Println("failed update cache, err: " + err.Error())
 	}
 
 	return res
@@ -158,6 +199,7 @@ func getIPRange(localip string) []string {
 
 
 func getLocalIP() (string, error) {
+
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
@@ -208,4 +250,49 @@ func isVPNInterface(name string) bool {
 		strings.HasPrefix(name, "tap") ||
 		strings.HasPrefix(name, "wg") ||
 		strings.HasPrefix(name, "ppp")
+}
+
+// createFile создаёт файл с указанным именем в указанной директории.
+// Если path пустой, файл создаётся в домашней директории пользователя.
+// Возвращает полный путь к созданному файлу или ошибку.
+func createFile(filename, path string) (string, error) {
+	// Если путь пустой, используем домашнюю директорию
+	if path == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return "", fmt.Errorf("не удалось получить текущего пользователя: %w", err)
+		}
+		path = currentUser.HomeDir
+	}
+
+	// Формируем полный путь к файлу
+	filePath := filepath.Join(path, filename)
+
+	// Создаём файл
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("не удалось создать файл: %w", err)
+	}
+	defer file.Close()
+
+	return filePath, nil
+}
+
+// createFile создаёт файл с указанным именем в указанной директории.
+// Если path пустой, файл создаётся в домашней директории пользователя.
+// Возвращает полный путь к созданному файлу или ошибку.
+func createHomePath(filename, path string) (string, error) {
+	// Если путь пустой, используем домашнюю директорию
+	if path == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return "", fmt.Errorf("не удалось получить текущего пользователя: %w", err)
+		}
+		path = currentUser.HomeDir
+	}
+
+	// Формируем полный путь к файлу
+	filePath := filepath.Join(path, filename)
+
+	return filePath, nil
 }

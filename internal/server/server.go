@@ -39,11 +39,11 @@ func New(log *slog.Logger,
 	}
 }
 
-func (ipms *IPMsgServer) Init(ctx context.Context) error {
+func (ipserver *IPMsgServer) Init(ctx context.Context) error {
 
 	const op = "IPMsgServer.Init()"
 
-	Addr := ipms.Addr
+	Addr := ipserver.Addr
 
 	l, err := net.Listen("tcp", Addr)
 	if err != nil {
@@ -60,13 +60,13 @@ func (ipms *IPMsgServer) Init(ctx context.Context) error {
 			if err != nil {
 				continue
 			}
-			go ipms.handleConn(conn)
+			go ipserver.handleConn(conn)
 		}
 	}
 }
 
 
-func (ipms *IPMsgServer) handleConn(conn net.Conn) {
+func (ipserver *IPMsgServer) handleConn(conn net.Conn) {
     defer conn.Close()
 
     conn.SetReadDeadline(time.Now().Add(1 * time.Minute))
@@ -75,7 +75,7 @@ func (ipms *IPMsgServer) handleConn(conn net.Conn) {
     
     data, err := reader.ReadBytes('\x00')
     if err != nil {
-        ipms.writeError(conn, "failed read request: "+err.Error())
+        ipserver.writeError(conn, "failed read request: "+err.Error())
         return
     }
 
@@ -83,12 +83,12 @@ func (ipms *IPMsgServer) handleConn(conn net.Conn) {
 
     req, err := parceRequest(string(data))
     if err != nil {
-        ipms.writeError(conn, "failed parse request: "+err.Error())
+        ipserver.writeError(conn, "failed parse request: "+err.Error())
         return
     }
 
-    if err := ipms.Saver.SaveToFile(ipms.SaveFilePath, req); err != nil {
-        ipms.writeError(conn, "failed save message: "+err.Error())
+    if err := ipserver.Saver.SaveToFile(ipserver.SaveFilePath, req); err != nil {
+        ipserver.writeError(conn, "failed save message: "+err.Error())
         return
     }
 
@@ -129,12 +129,13 @@ func writeSuc(conn net.Conn)  {
 	conn.Write([]byte(r.DecodeToString()))
 }
 
-func (ipm *IPMsgServer) writeError(conn net.Conn, err string)  {
+func (ipserver *IPMsgServer) writeError(conn net.Conn, err string)  {
 
-	ipm.log.Error(err)
+	ipserver.log.Error(err)
 
 	er := models.IPResponse{Succes: false, Error: &err}
 
 	conn.Write([]byte(er.DecodeToString()))
 	conn.Close()
 }
+
