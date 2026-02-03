@@ -2,8 +2,8 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SERVER_BIN="$PROJECT_DIR/linux/server"
-CLI_BIN="$PROJECT_DIR/linux/cli"
+SERVER_BIN="$PROJECT_DIR/mac_arm/server"
+CLI_BIN="$PROJECT_DIR/mac_arm/cli"
 
 PLIST_DIR="$HOME/Library/LaunchAgents"
 PLIST_NAME="com.ipmsg.server.plist"

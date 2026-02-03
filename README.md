@@ -27,7 +27,7 @@ ipmsg is a small Go tool that listens on port `6767` (-_(*_*)_-) and receives TC
 
     # Windows
     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-    .\windows_install.ps1
+    .\win_install.ps1
     ```
 
 ## Usage

@@ -1,6 +1,6 @@
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ServerBin = Join-Path $ProjectDir "linux\server.exe"
-$CliBin = Join-Path $ProjectDir "linux\cli.exe"
+$ServerBin = Join-Path $ProjectDir "win\server.exe"
+$CliBin = Join-Path $ProjectDir "win\cli.exe"
 
 Write-Host "[*] Checking binaries..."
 if (!(Test-Path $ServerBin)) { Write-Error "server.exe not found"; exit 1 }
