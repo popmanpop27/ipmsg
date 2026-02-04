@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -95,21 +94,17 @@ func (c *Cache) write(ips []string) error {
 		return err
 	}
 
-	dir := filepath.Dir(c.FilePath)
-	tmp, err := os.CreateTemp(dir, "cache-*.tmp")
+
+	file, err := os.OpenFile(c.FilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name())
+	defer file.Close()
 
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+	_, err = file.Write(data)
+	if err != nil {
 		return err
 	}
 
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-
-	return os.Rename(tmp.Name(), c.FilePath)
+	return nil
 }
