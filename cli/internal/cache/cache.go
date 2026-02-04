@@ -2,6 +2,7 @@ package cache
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -35,6 +36,11 @@ func (c *Cache) GetIps() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	
+	if time.Since(cache.UpdatedAt).Minutes() > 60 {
+		return nil, errors.New("cache is expired")
+	}
+
 	return cache.IPs, nil
 }
 

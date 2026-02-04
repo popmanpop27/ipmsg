@@ -27,7 +27,12 @@ func main() {
 	var destinationIP string
 	var port uint
 
-	defaultCachePath, err := createHomePath("ipmsg/cache.json", "")
+	if err := createDirInHome("ipmsg"); err != nil {
+		fmt.Println("failed create ipmsg dir in home dir")
+		os.Exit(1)
+	}
+
+	defaultCachePath, err := createFile("ipmsg/cache.json", "")
 	if err != nil {
 		fmt.Println("failed create cache file error: " + err.Error())
 		os.Exit(1)
@@ -259,26 +264,32 @@ func createFile(filename, path string) (string, error) {
 
 	filePath := filepath.Join(path, filename)
 
-	file, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed create file: %w", err)
+	 _, err := os.Stat(filePath)
+	if os.IsNotExist(err) {		
+		file, err := os.Create(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed create file: %w", err)
+		}
+		defer file.Close()
+	} else if err != nil {
+		return "", err
 	}
-	defer file.Close()
+
 
 	return filePath, nil
 }
 
+func createDirInHome(path string) error {
 
-func createHomePath(filename, path string) (string, error) {
-	if path == "" {
-		currentUser, err := user.Current()
-		if err != nil {
-			return "", fmt.Errorf("failed get target user: %w", err)
-		}
-		path = currentUser.HomeDir
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return err
 	}
 
-	filePath := filepath.Join(path, filename)
+	err = os.MkdirAll(filepath.Join(userHome, path), 0755)
+	if err != nil {
+		return err
+	}
 
-	return filePath, nil
+	return nil
 }
