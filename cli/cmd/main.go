@@ -23,6 +23,8 @@ type Cache interface {
 	UpdateIps(ips []string) error
 }
 
+var noCache bool
+
 func main() {
 	var destinationIP string
 	var port uint
@@ -43,6 +45,7 @@ func main() {
 	flag.StringVar(&destinationIP, "to", "", "recipient ip address")
 	flag.UintVar(&port, "port", 6767, "recipient port")
 	flag.StringVar(&cachePath, "cache", defaultCachePath, "path to json file with cache")
+	flag.BoolVar(&noCache, "scan", false, "if set ipmsg ignores cache file and scan network")
 	flag.Parse()
 
 
@@ -147,11 +150,15 @@ func main() {
 
 func getIPRange(localIP string, cache Cache) []string {
 
-	cached, err := cache.GetIps()
-	if err == nil && len(cached) > 0 {
-		return cached
+	if !noCache {		
+		cached, err := cache.GetIps()
+		if err == nil && len(cached) > 0 {
+			return cached
+		} else {
+				fmt.Printf("Failed get ip`s from cache, pinging network")
+		}
 	} else {
-			fmt.Printf("Failed get ip`s from cache, pinging network")
+		fmt.Println("Ignoring cache file")
 	}
 
 	ip := net.ParseIP(localIP)
@@ -191,7 +198,7 @@ func getIPRange(localIP string, cache Cache) []string {
 	}
 	fmt.Printf("]\n")
 
-	err = cache.UpdateIps(res)
+	err := cache.UpdateIps(res)
 	if err != nil {
 		fmt.Println("failed update cache, err: " + err.Error())
 	}
