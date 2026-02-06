@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -149,61 +151,108 @@ func main() {
 }
 
 func getIPRange(localIP string, cache Cache) []string {
-
-	if !noCache {		
-		cached, err := cache.GetIps()
-		if err == nil && len(cached) > 0 {
+	// ===== CACHE =====
+	if !noCache {
+		if cached, err := cache.GetIps(); err == nil && len(cached) > 0 {
 			return cached
-		} else {
-				fmt.Printf("Failed get ip`s from cache, pinging network")
 		}
+		fmt.Println("Failed to get IPs from cache, scanning network")
 	} else {
 		fmt.Println("Ignoring cache file")
 	}
 
+	// ===== IP VALIDATION =====
 	ip := net.ParseIP(localIP)
 	ipv4 := ip.To4()
-
-	res := []string{}
-	var wg sync.WaitGroup
-	resChan := make(chan string, 255)
-
-	for i := 1; i <= 255; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			nIP := fmt.Sprintf("%d.%d.%d.%d", ipv4[0], ipv4[1], ipv4[2], i)
-			pinger := probing.New(nIP)
-			pinger.Count = 1
-
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-			defer cancel()
-
-			if err := pinger.RunWithContext(ctx); err == nil && pinger.PacketsRecv > 0 {
-				resChan <- nIP
-			}
-		}(i)
+	if ipv4 == nil {
+		fmt.Println("Invalid IPv4 address:", localIP)
+		return nil
 	}
+
+	base := fmt.Sprintf("%d.%d.%d.", ipv4[0], ipv4[1], ipv4[2])
+
+	// ===== WORKER POOL =====
+	const (
+		maxHosts   = 255
+		workers    = 50
+		timeout    = 2 * time.Second
+	)
+
+	jobs := make(chan int, maxHosts)
+	results := make(chan string, maxHosts)
+
+	var wg sync.WaitGroup
+
+	worker := func() {
+		defer wg.Done()
+		for i := range jobs {
+			ip := base + strconv.Itoa(i)
+			if hostAlive(ip, timeout) {
+				results <- ip
+			}
+		}
+	}
+
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go worker()
+	}
+
+	for i := 1; i <= maxHosts; i++ {
+		jobs <- i
+	}
+	close(jobs)
 
 	go func() {
 		wg.Wait()
-		close(resChan)
+		close(results)
 	}()
 
+	// ===== COLLECT =====
 	fmt.Print("\n[")
-
-	for ip := range resChan {
+	res := make([]string, 0)
+	for ip := range results {
 		fmt.Print("=")
 		res = append(res, ip)
 	}
-	fmt.Printf("]\n")
+	fmt.Println("]")
 
-	err := cache.UpdateIps(res)
-	if err != nil {
-		fmt.Println("failed update cache, err: " + err.Error())
+	// ===== UPDATE CACHE =====
+	if err := cache.UpdateIps(res); err != nil {
+		fmt.Println("failed to update cache:", err)
 	}
 
 	return res
+}
+
+func hostAlive(ip string, timeout time.Duration) bool {
+	if runtime.GOOS == "windows" {
+		return tcpPing(ip, timeout)
+	}
+	return icmpPing(ip, timeout)
+}
+
+func tcpPing(ip string, timeout time.Duration) bool {
+	conn, err := net.DialTimeout("tcp", ip+":6767", timeout)
+	if err == nil {
+		conn.Close()
+		return true
+	}
+	return false
+}
+
+func icmpPing(ip string, timeout time.Duration) bool {
+	pinger := probing.New(ip)
+	pinger.Count = 1
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := pinger.RunWithContext(ctx); err != nil {
+		return false
+	}
+
+	return pinger.PacketsRecv > 0
 }
 
 
