@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,13 +10,11 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	probing "github.com/prometheus-community/pro-bing"
 )
 
 type Cache interface {
@@ -26,10 +23,10 @@ type Cache interface {
 }
 
 var noCache bool
+var port uint
 
 func main() {
 	var destinationIP string
-	var port uint
 
 	if err := createDirInHome("ipmsg"); err != nil {
 		fmt.Println("failed create ipmsg dir in home dir")
@@ -226,33 +223,16 @@ func getIPRange(localIP string, cache Cache) []string {
 }
 
 func hostAlive(ip string, timeout time.Duration) bool {
-	if runtime.GOOS == "windows" {
-		return tcpPing(ip, timeout)
-	}
-	return icmpPing(ip, timeout)
+	return tcpPing(ip, timeout)
 }
 
 func tcpPing(ip string, timeout time.Duration) bool {
-	conn, err := net.DialTimeout("tcp", ip+":6767", timeout)
+	conn, err := net.DialTimeout("tcp", ip+fmt.Sprintf("%d", port), timeout)
 	if err == nil {
 		conn.Close()
 		return true
 	}
 	return false
-}
-
-func icmpPing(ip string, timeout time.Duration) bool {
-	pinger := probing.New(ip)
-	pinger.Count = 1
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := pinger.RunWithContext(ctx); err != nil {
-		return false
-	}
-
-	return pinger.PacketsRecv > 0
 }
 
 
