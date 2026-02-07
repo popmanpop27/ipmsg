@@ -3,6 +3,19 @@ A simple program for chatting between computers on a local network.
 
 ipmsg is a small Go tool that listens on port `6767` (-_(*_*)_-) and receives TCP requests, writing them to a file `ipmsg.txt` located in your home directory. It also includes a client that can send messages to a specific IP in your network or broadcast to all devices on the local network.
 
+That is how chat looks like:
+
+```
+TIME                 | FROM                           |    LEN
+---------------------------------------------------------------
+2026-02-05 21:23:20  | 192.168.1.39                   |     17
+hello
+
+
+2026-02-06 21:17:57  | 192.168.1.39                   |      6
+
+```
+
 ## Table of Contents
 1. [Installation](#installation)
 2. [Usage](#usage)
@@ -46,6 +59,18 @@ ipmsg is a small Go tool that listens on port `6767` (-_(*_*)_-) and receives TC
     ```bash
     ipmsg --help
     ```
+
+All received messages will be written to file ipmsg.txt located in your home directory
+```
+    // message getting
+    //linux/mac
+
+    cat ~/ipmsg.txt
+
+    //windows
+
+    type C:\Users\{User}\ipmsg.txt
+```
 
 ## Features
 - Simple local network chat
