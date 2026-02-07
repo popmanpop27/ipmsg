@@ -8,7 +8,15 @@ import (
 	"time"
 )
 
-type FileSaver struct {}
+type FileSaver struct {
+	aliases map[string]string
+}
+
+func New(al map[string]string) *FileSaver {
+	return &FileSaver{
+		aliases: al,
+	}
+}
 
 func (fs *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest) error {
 	const op = "filesaver.SaveToFile"
@@ -28,11 +36,17 @@ func (fs *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest) error
 		}
 	}
 
+	from := req.From
+
+	if name, exists := fs.aliases[from]; exists {
+		from = fmt.Sprintf("%s(%s)", name, req.From)
+	}
+
 	_, err = fmt.Fprintf(
 		file,
 		"%-20s | %-30s | %6d\n%s\n\n",
 		time.Unix(req.Date, 0).Format(time.DateTime),
-		req.From,
+		from,
 		req.Len,
 		req.Msg,
 	)

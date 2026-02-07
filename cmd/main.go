@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+
+	"ipmsg/pkg/alias"
 )
 
 func main()  {
@@ -25,26 +27,30 @@ func main()  {
 
 	const (
 		defaultHost     = "0.0.0.0"
-		defaultPort     = 6767
+		defaultPort     =  6767
 	)
 	log := slog.Default()
 
 	defaultSavePath, err := createFile("ipmsg.txt", "")
 
 	if err != nil {
-		log.Error("failed create cache file, program may work slow", "err", err)
+		log.Error("failed create storage file", "err", err)
+		os.Exit(1)
 	}
 
+	defaultAliasPath, err := createFile("ipmsg/alias.txt", "")
 	if err != nil {
-		log.Error("failed create storage file", "err", err)
+		log.Error("failed create alias file", "err", err)
 		os.Exit(1)
 	}
 
 	var savePath, host string
 	var port uint
+	var aliasPath string
 	flag.StringVar(&savePath, "save_path", defaultSavePath, "path to file with messages")
 	flag.StringVar(&host, "host", defaultHost, "host")
 	flag.UintVar(&port, "port", defaultPort, "port")
+	flag.StringVar(&aliasPath, "alias_path", defaultAliasPath, "path to file with aliases")
 	flag.Parse()
 
 	if port > 65535 {
@@ -53,8 +59,14 @@ func main()  {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	fileWriter := filesaver.FileSaver{}
-	server := server.New(log, &fileWriter, host, uint16(port), savePath)
+	alsManager := alias.New(aliasPath)
+	als, err := alsManager.GetNames()
+	if err != nil {
+		log.Error("failed get alias files")
+		os.Exit(1)
+	}
+	fileWriter := filesaver.New(als)
+	server := server.New(log, fileWriter, host, uint16(port), savePath)
 
 	go func() {
 		if err := server.Init(ctx); err != nil {
