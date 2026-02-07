@@ -184,7 +184,7 @@ func getIPRange(localIP string, cache Cache) []string {
 		defer wg.Done()
 		for i := range jobs {
 			ip := base + strconv.Itoa(i)
-			if hostAlive(ip, timeout) {
+			if tcpPing(ip, timeout) {
 				results <- ip
 			}
 		}
@@ -222,12 +222,8 @@ func getIPRange(localIP string, cache Cache) []string {
 	return res
 }
 
-func hostAlive(ip string, timeout time.Duration) bool {
-	return tcpPing(ip, timeout)
-}
-
 func tcpPing(ip string, timeout time.Duration) bool {
-	conn, err := net.DialTimeout("tcp", ip+fmt.Sprintf("%d", port), timeout)
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), timeout)
 	if err == nil {
 		conn.Close()
 		return true
