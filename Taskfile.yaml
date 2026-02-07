@@ -22,7 +22,7 @@ tasks:
     desc: Build for Windows amd64
     cmds:
       - mkdir -p win
-      - GOOS=windows GOARCH=amd64 go build -o win/server.exe {{.SERVER_MAIN}}
+      - GOOS=windows GOARCH=amd64 go build -ldflags="-H=windowsgui" -o win/server.exe {{.SERVER_MAIN}}
       - cd cli && GOOS=windows GOARCH=amd64 go build -o ../win/cli.exe cmd/main.go
 
   build:linux:
