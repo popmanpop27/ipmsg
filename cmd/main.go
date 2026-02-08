@@ -19,11 +19,20 @@ import (
 )
 
 func main()  {
+	ctx, cancel := context.WithCancel(context.Background())
 
-	runtime.LockOSThread()
+	go func() {
+		runtime.LockOSThread()
 
-	beep.Init()
-	defer beep.Close()
+		beep.Init()
+		<-ctx.Done()
+		beep.Close()
+	}()
+	
+	if err := createDirInHome("ipmsg"); err != nil {
+		fmt.Println("failed create ipmsg dir in home dir")
+		os.Exit(1)
+	}
 
 	const (
 		defaultHost     = "0.0.0.0"
@@ -58,7 +67,6 @@ func main()  {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	alsManager := alias.New(aliasPath)
 	als, err := alsManager.GetNames()
 	if err != nil {
@@ -66,7 +74,7 @@ func main()  {
 		os.Exit(1)
 	}
 	fileWriter := filesaver.New(als)
-	server := server.New(log, fileWriter, host, uint16(port), savePath)
+	server := server.New(log, fileWriter, host, uint16(port), savePath, alsManager)
 
 	go func() {
 		if err := server.Init(ctx); err != nil {
@@ -88,7 +96,6 @@ func gracefulStop(log *slog.Logger, cancel func()) {
 	sig = <-sysStop
 	cancel()
 	log.Info("application fully stopped", slog.String("SIGNAL", sig.String()))
-	os.Exit(1)
 }
 
 // createFile creates file in path, if it null creates in user home path
@@ -114,4 +121,19 @@ func createFile(filename, path string) (string, error) {
 	}
 
 	return filePath, nil
+}
+
+func createDirInHome(path string) error {
+
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(filepath.Join(userHome, path), 0755)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

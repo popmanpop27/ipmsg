@@ -4,22 +4,28 @@ import (
 	"bufio"
 	"fmt"
 	"ipmsg/internal/domain/models"
+	"ipmsg/pkg/alias"
 	"os"
 	"time"
 )
 
+
 type FileSaver struct {
-	aliases map[string]string
 }
 
 func New(al map[string]string) *FileSaver {
 	return &FileSaver{
-		aliases: al,
 	}
 }
 
-func (fs *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest) error {
+func (fs *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest, alSaver *alias.Alias) error {
 	const op = "filesaver.SaveToFile"
+
+	if req.Alias != "" {
+		if err := alSaver.AddName(req.Alias, req.From); err != nil {
+			return err
+		}
+	}
 
 	file, err := os.OpenFile(filename, os.O_CREATE| os.O_RDWR, 0644)
 	if err != nil {
@@ -38,7 +44,12 @@ func (fs *FileSaver) SaveToFile(filename string, req *models.IPmsgRequest) error
 
 	from := req.From
 
-	if name, exists := fs.aliases[from]; exists {
+	aliases, err := alSaver.GetNames()
+	if err != nil {
+		return err
+	}
+
+	if name, exists := aliases[req.From]; exists {
 		from = fmt.Sprintf("%s(%s)", name, req.From)
 	}
 

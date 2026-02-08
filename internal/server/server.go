@@ -8,6 +8,7 @@ import (
 
 	"ipmsg/internal/beep"
 	"ipmsg/internal/domain/models"
+	"ipmsg/pkg/alias"
 	"log/slog"
 	"net"
 	"strings"
@@ -16,7 +17,7 @@ import (
 )
 
 type MsgSaver interface {
-	SaveToFile(filename string, req *models.IPmsgRequest) error 
+	SaveToFile(filename string, req *models.IPmsgRequest, alSaver *alias.Alias) error 
 }
 
 type IPMsgServer struct {
@@ -24,32 +25,41 @@ type IPMsgServer struct {
 	Saver 		 MsgSaver
 	SaveFilePath string
 	log    		 *slog.Logger
+	alias        *alias.Alias
 }
 
 func New(log *slog.Logger, 
 	saver MsgSaver, 
 	host string, 
 	port uint16, 
-	savePath string,) *IPMsgServer {
+	savePath string,
+	alias *alias.Alias,
+	) *IPMsgServer {
 	return &IPMsgServer{
 		Saver: saver,
 		Addr: fmt.Sprintf("%s:%d", host, port),
 		SaveFilePath: savePath,
 		log: log,
+		alias: alias,
 	}
 }
 
-func (ipserver *IPMsgServer) Init(ctx context.Context) error {
+func (ipServer *IPMsgServer) Init(ctx context.Context) error {
 
 	const op = "IPMsgServer.Init()"
 
-	Addr := ipserver.Addr
+	Addr := ipServer.Addr
 
 	l, err := net.Listen("tcp", Addr)
 	if err != nil {
 		return fmt.Errorf("%s: %w", Addr, err)
 	}
-	defer l.Close()
+	
+	go func() {
+		<-ctx.Done()
+		l.Close()
+		ipServer.log.Warn("opening port")
+	}()
 
 	for {
 		select {
@@ -60,35 +70,40 @@ func (ipserver *IPMsgServer) Init(ctx context.Context) error {
 			if err != nil {
 				continue
 			}
-			go ipserver.handleConn(conn)
+			go ipServer.handleConn(conn, ctx)
 		}
 	}
 }
 
 
-func (ipserver *IPMsgServer) handleConn(conn net.Conn) {
+func (ipServer *IPMsgServer) handleConn(conn net.Conn, ctx context.Context) {
     defer conn.Close()
 
     conn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+
+	go func() {
+		<- ctx.Done()
+		conn.Close()
+	}()
 
 	reader := bufio.NewReaderSize(conn, 1024)
     
     data, err := reader.ReadBytes('\x00')
     if err != nil {
-        ipserver.writeError(conn, "failed read request: "+err.Error())
+        ipServer.writeError(conn, "failed read request: "+err.Error())
         return
     }
 
     data = bytes.TrimSuffix(data, []byte{0})
 
-    req, err := parceRequest(string(data))
+    req, err := ipServer.parseRequest(string(data))
     if err != nil {
-        ipserver.writeError(conn, "failed parse request: "+err.Error())
+        ipServer.writeError(conn, "failed parse request: "+err.Error())
         return
     }
 
-    if err := ipserver.Saver.SaveToFile(ipserver.SaveFilePath, req); err != nil {
-        ipserver.writeError(conn, "failed save message: "+err.Error())
+    if err := ipServer.Saver.SaveToFile(ipServer.SaveFilePath, req, ipServer.alias); err != nil {
+        ipServer.writeError(conn, "failed save message: "+err.Error())
         return
     }
 
@@ -98,7 +113,7 @@ func (ipserver *IPMsgServer) handleConn(conn net.Conn) {
 }
 
 
-func parceRequest(req string) (*models.IPmsgRequest, error) {
+func (ipServer *IPMsgServer) parseRequest(req string) (*models.IPmsgRequest, error) {
 	var res models.IPmsgRequest
 
 	parts := strings.SplitN(req, "\nmsg:", 2)
@@ -111,10 +126,11 @@ func parceRequest(req string) (*models.IPmsgRequest, error) {
 
 	_, err := fmt.Sscanf(
 		header,
-		"ipmsg\nfrom:%s\nlen:%d\ndate:%d",
+		"ipmsg\nfrom:%s\nlen:%d\ndate:%d\nalias:%s",
 		&res.From,
 		&res.Len,
 		&res.Date,
+		&res.Alias,
 	)
 	if err != nil {
 		return nil, err
@@ -129,9 +145,9 @@ func writeSuc(conn net.Conn)  {
 	conn.Write([]byte(r.DecodeToString()))
 }
 
-func (ipserver *IPMsgServer) writeError(conn net.Conn, err string)  {
+func (ipServer *IPMsgServer) writeError(conn net.Conn, err string)  {
 
-	ipserver.log.Error(err)
+	ipServer.log.Error(err)
 
 	er := models.IPResponse{Succes: false, Error: &err}
 

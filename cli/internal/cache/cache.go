@@ -12,6 +12,7 @@ type Cache struct {
 	FilePath  string    `json:"-"`
 	UpdatedAt time.Time `json:"updated_at"`
 	IPs       []string  `json:"ips"`
+	Name      string   	`json:"name"` 
 
 	mu sync.Mutex
 }
@@ -22,7 +23,7 @@ func New(path string) (*Cache, error) {
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := c.write([]string{}); err != nil {
+		if err := c.write([]string{}, ""); err != nil {
 			return nil, err
 		}
 	}
@@ -43,9 +44,22 @@ func (c *Cache) GetIps() ([]string, error) {
 	return cache.IPs, nil
 }
 
+func (c *Cache) GetName() (string, error) {
+	cache, err := c.read()
+	if err != nil {
+		return "", err
+	}
+
+	if time.Since(cache.UpdatedAt).Minutes() > 60 {
+		return "", errors.New("cache is expired")
+	}
+
+	return cache.Name, nil
+}
+
 // rewriting ips in cache to provided
-func (c *Cache) UpdateIps(ips []string) error {
-	if err := c.write(ips); err != nil {
+func (c *Cache) UpdateIps(ips []string, name string) error {
+	if err := c.write(ips, name); err != nil {
 		return err
 	}
 
@@ -68,6 +82,7 @@ func (c *Cache) read() (*Cache, error) {
 			FilePath:  c.FilePath,
 			IPs:       []string{},
 			UpdatedAt: time.Now(),
+			Name: "",
 		}, nil
 	}
 
@@ -80,12 +95,13 @@ func (c *Cache) read() (*Cache, error) {
 	return &cache, nil
 }
 
-func (c *Cache) write(ips []string) error {
+func (c *Cache) write(ips []string, name string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	cache := Cache{
 		IPs:       ips,
+		Name: name,
 		UpdatedAt: time.Now(),
 	}
 

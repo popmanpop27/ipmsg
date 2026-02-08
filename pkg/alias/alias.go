@@ -1,4 +1,5 @@
 package alias
+// package for saving aliases in file in format <address> <alias> (example: 192.168.1.1 alex)
 
 import (
 	"bufio"
@@ -8,7 +9,6 @@ import (
 	"strings"
 )
 
-// package for saving aliases in file in format <address> <alias> (example: 192.168.1.1 alex)
 
 type Alias struct {
 	filePath string
@@ -53,6 +53,16 @@ func (a *Alias) GetNames() (map[string]string, error) {
 }
 
 func (a *Alias) AddName(name string, address string) error {
+
+	aliases, err := a.GetNames()
+	if err != nil {
+		return err
+	}
+
+	if _, ex := aliases[name]; ex {
+		return nil // skip if alias already exists
+	}
+
 	file, err := os.OpenFile(a.filePath, os.O_CREATE | os.O_WRONLY | os.O_APPEND, 0644)
 	if err != nil {
 		return err

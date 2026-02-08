@@ -18,11 +18,6 @@ import (
 	"time"
 )
 
-type Cache interface {
-	GetIps() ([]string, error)
-	UpdateIps(ips []string) error
-}
-
 var noCache bool
 var port uint
 var stopKey string 
@@ -117,8 +112,9 @@ func main() {
 		}
 		fmt.Print("\n")
 
+		myName := getName(cacheManager)
+		
 		fmt.Println("Type your message, to stop typing press " + stopKey)
-
 		msgText, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			fmt.Printf("failed read from stdin, err: %s\n", err.Error())
@@ -138,10 +134,11 @@ func main() {
 			}
 
 			_, err = conn.Write([]byte(fmt.Sprintf(
-				"ipmsg\nfrom:%s\nlen:%d\ndate:%d\nmsg:%s\x00",
+				"ipmsg\nfrom:%s\nlen:%d\ndate:%d\nalias:%s\nmsg:%s\x00",
 				myIP,
 				length,
 				time.Now().Unix(),
+				myName,
 				msgText,
 			)))
 			if err == nil {
@@ -180,9 +177,10 @@ func main() {
 		fmt.Printf("failed get local ip, err: %s\n", err.Error())
 		os.Exit(1)
 	}
+	
+	myName := getName(cacheManager)
 
 	fmt.Println("Type your message, to stop typing press " + stopKey)
-
 	msgText, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Printf("failed read from stdin, err: %s\n", err.Error())
@@ -191,11 +189,13 @@ func main() {
 
 	length := len(msgText)
 
+
 	_, err = conn.Write([]byte(fmt.Sprintf(
-		"ipmsg\nfrom:%s\nlen:%d\ndate:%d\nmsg:%s\x00",
+		"ipmsg\nfrom:%s\nlen:%d\ndate:%d\nalias:%s\nmsg:%s\x00",
 		myIP,
 		length,
 		time.Now().Unix(),
+		myName,
 		msgText,
 	)))
 	if err != nil {
@@ -205,7 +205,32 @@ func main() {
 	fmt.Println("Sent to 1 machine")
 }
 
-func getIPRange(localIP string, cache Cache) []string {
+func getName(mgr *cache.Cache) string {
+	nameCache, _ := mgr.GetName()
+	if nameCache != "" {
+		return nameCache
+	}
+
+	name := ""
+
+	fmt.Print("Write your name\n-> ")
+	fmt.Scan(&name)
+
+	ips, err := mgr.GetIps()
+	if err != nil {
+		fmt.Println("failed get ips, err: " + err.Error())
+		os.Exit(1)
+	}
+
+	err = mgr.UpdateIps(ips, name)
+	if err != nil {
+		fmt.Println("failed save name to cache, err: " + err.Error())
+	}
+
+	return name
+}
+
+func getIPRange(localIP string, cache *cache.Cache) []string {
 	// ===== CACHE =====
 	if !noCache {
 		if cached, err := cache.GetIps(); err == nil && len(cached) > 0 {
@@ -273,7 +298,7 @@ func getIPRange(localIP string, cache Cache) []string {
 	fmt.Println("]")
 
 	// ===== UPDATE CACHE =====
-	if err := cache.UpdateIps(res); err != nil {
+	if err := cache.UpdateIps(res, cache.Name); err != nil {
 		fmt.Println("failed to update cache:", err)
 	}
 
