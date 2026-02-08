@@ -27,9 +27,13 @@ var (
 func Init() error {
     var err error
     once.Do(func() {
-        ctx, _, err = oto.NewContext(44100, 1, 2)
+		var ready <-chan struct{}
+        ctx, ready, err = oto.NewContext(44100, 1, 2)
+		if err != nil {
+			return
+		}
+		<-ready
 		beepQueue = make(chan struct{}, 10)
-
 		go audioWorker()
     })
     return err
@@ -95,7 +99,6 @@ func playBeep(freq float64, dur time.Duration) error {
 		return errors.New("voice context is null")
 	}
 
-	// создаём наш генератор синусоиды
 	tr := &toneReader{
 		sampleRate:   sampleRate,
 		frequency:    freq,
