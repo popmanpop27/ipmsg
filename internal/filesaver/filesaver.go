@@ -3,7 +3,7 @@ package filesaver
 import (
 	"bufio"
 	"fmt"
-	"ipmsg/internal/domain/models"
+	"ipmsg/pkg/models"
 	"ipmsg/pkg/alias"
 	"os"
 	"time"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"ipmsg/internal/beep"
-	"ipmsg/internal/domain/models"
+	"ipmsg/pkg/models"
 	"ipmsg/pkg/alias"
 	"log/slog"
 	"net"
