@@ -40,7 +40,7 @@ func main() {
 	log := slog.Default()
 
 	a := app.New()
-	w := a.NewWindow("ipmsg gui")
+	w := a.NewWindow("ipmsg GUI")
 	w.Resize(fyne.NewSize(600, 400))
 
 	appError := apperror.New(log, w)
@@ -64,6 +64,14 @@ func main() {
 
 	input := widget.NewEntry()
 	input.SetPlaceHolder("Type message...")
+
+	refreshButton := widget.NewButton("Refresh", func() {
+		if err := showMessages(messageContainer, msgPath); err != nil {
+			appError.QError("failed show messages", err)
+		}
+	})
+
+	refreshButton.OnTapped()
 
 	sendBtn := widget.NewButton("Send", func() {
 		text := input.Text
@@ -90,7 +98,7 @@ func main() {
 		sendBtn.OnTapped()
 	}
 
-	bottom := container.NewBorder(nil, nil, nil, sendBtn, input)
+	bottom := container.NewBorder(nil, nil, refreshButton, container.NewBorder(nil, nil, nil, sendBtn, input))
 
 	/* -------- Layout -------- */
 

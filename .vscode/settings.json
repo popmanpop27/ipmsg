@@ -1,9 +1,14 @@
 {
     "cSpell.words": [
+        "apperror",
+        "fileparcer",
+        "fileparser",
         "filesaver",
+        "fyne",
         "GOARCH",
         "ipmsg",
-        "ipmsgcli"
+        "ipmsgcli",
+        "therecipe"
     ],
     "cSpell.language": "en,ru"
 }
