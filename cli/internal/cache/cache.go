@@ -2,7 +2,6 @@ package cache
 
 import (
 	"encoding/json"
-	"errors"
 	"os"
 	"sync"
 	"time"
@@ -37,10 +36,6 @@ func (c *Cache) GetIps() ([]string, error) {
 		return nil, err
 	}
 	
-	if time.Since(cache.UpdatedAt).Minutes() > 60 {
-		return nil, errors.New("cache is expired")
-	}
-
 	return cache.IPs, nil
 }
 
@@ -50,9 +45,6 @@ func (c *Cache) GetName() (string, error) {
 		return "", err
 	}
 
-	if time.Since(cache.UpdatedAt).Minutes() > 60 {
-		return "", errors.New("cache is expired")
-	}
 
 	return cache.Name, nil
 }

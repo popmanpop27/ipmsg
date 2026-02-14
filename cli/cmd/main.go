@@ -31,7 +31,7 @@ func main() {
 	}
 
 	if runtime.GOOS == "windows" {
-		stopKey = "CTRL+Z than ENTER"
+		stopKey = "CTRL+Z then ENTER"
 	} else {
 		stopKey = "CTRL+D"
 	}
@@ -255,7 +255,7 @@ func getIPRange(localIP string, cache *cache.Cache) []string {
 	const (
 		maxHosts   = 255
 		workers    = 50
-		timeout    = 2 * time.Second
+		timeout    = 1 * time.Second
 	)
 
 	jobs := make(chan int, maxHosts)

@@ -72,8 +72,27 @@ All received messages will be written to file ipmsg.txt located in your home dir
     type C:\Users\{User}\ipmsg.txt
 ```
 
+Also you can name addresses with that command
+
+```ipmsg --alias <name_for_address> --ip <address>```
+
+After what you can send messages to that alias and it will be interpreted as ip
+
+```ipmsg --to alex```
+
+And in ~/ipmsg.txt file all messages will be marked as from alex
+
+```
+2026-02-08 16:17:39  | alex(172.168.1.39)             |     20
+to alan from alex
+```
+
+To prevent everyone from creating aliases, with each of your messages you send your name, so all computers are named. 
+If you don't want to name your IP, press Enter when asked for your name when sending
+
 ## Features
 - Simple local network chat
+- Named devices in net
 - Logs messages to a file in your home directory (`ipmsg.txt`)
 - Send messages to a specific IP or broadcast to all devices
 - Easy installation scripts for Linux, macOS, and Windows
